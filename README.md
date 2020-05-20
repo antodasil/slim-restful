@@ -10,7 +10,7 @@ This library provides useful classes to simplify the use of Slim framework to cr
 
 Install via [Composer](http://getcomposer.org)
 ```bash
-$ composer require adasilva/slim-restful:^v1.0-beta
+$ composer require adasilva/slim-restful:^v0.1
 ```
 
 This will install Slim restful and all required dependencies (Including slim framework). Slim restful requires PHP 7.4 or newer.
