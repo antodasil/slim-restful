@@ -2,7 +2,7 @@
 
 namespace SlimRestful;
 
-use Psr\Http\Message\ServerRequestInterface as Request;
+use Psr\Http\Message\ServerRequestInterface as IRequest;
 use Slim\Exception\HttpBadRequestException;
 
 /**
@@ -11,27 +11,27 @@ use Slim\Exception\HttpBadRequestException;
 abstract class BaseController {
 
     //HTTP status codes
-    const GET_SUCCESS_STATUS     = 200; // OK
-    const POST_SUCCESS_STATUS    = 201; // CREATED
-    const PUT_SUCCESS_STATUS     = 201; // CREATED
-    const DELETE_SUCCESS_STATUS  = 204; // No Content
+    const GET_SUCCESS_STATUS    = 200; // OK
+    const POST_SUCCESS_STATUS   = 201; // CREATED
+    const PUT_SUCCESS_STATUS    = 201; // CREATED
+    const DELETE_SUCCESS_STATUS = 204; // No Content
 
     //Default error messages
     const BAD_REQUEST_EXCEPTION    = 'Bad request';
     const MISSING_PARAMS_EXCEPTION = 'Missing parameters';
     const MISSING_ARGS_EXCEPTION   = 'Missing arguments';
 
-    protected SettingsManager $settingsManager;
+    protected SettingsManager $settings;
 
     //Controller __construct
     public function __construct() {
-        $this->settingsManager = SettingsManager::getInstance();
+        $this->settings = SettingsManager::getInstance();
     }
 
     /**
      * Throw an error if required POST params are missing
      * 
-     * @param Request $request
+     * @param IRequest $request
      * @param array $params string array
      * @param string $message
      * 
@@ -39,7 +39,7 @@ abstract class BaseController {
      * 
      * @throws HttpBadRequestException
      */
-    protected function requiredPostParams(Request $request, array $params, string $message = self::MISSING_PARAMS_EXCEPTION): array {
+    protected function requiredPostParams(IRequest $request, array $params, string $message = self::MISSING_PARAMS_EXCEPTION): array {
         
         if(!empty($params)) {
 
@@ -70,7 +70,7 @@ abstract class BaseController {
      * 
      * @throws HttpBadRequestException
      */
-    protected function requiredGetParams(Request $request, array $params, string $message = self::MISSING_PARAMS_EXCEPTION): array {
+    protected function requiredGetParams(IRequest $request, array $params, string $message = self::MISSING_PARAMS_EXCEPTION): array {
         
         if(!empty($params)) {
 
@@ -103,7 +103,7 @@ abstract class BaseController {
      * @throws HttpBadRequestException
      */
     protected function requiredArguments(
-        Request $request, array $args, array $params, string $message = self::MISSING_ARGS_EXCEPTION
+        IRequest $request, array $args, array $params, string $message = self::MISSING_ARGS_EXCEPTION
     ): array {
 
         if(!empty($params)) {
@@ -132,7 +132,7 @@ abstract class BaseController {
      * 
      * @throws HttpBadRequestException
      */
-    protected function isBadRequest(Request $request, string $message = self::BAD_REQUEST_EXCEPTION): void {
+    protected function isBadRequest(IRequest $request, string $message = self::BAD_REQUEST_EXCEPTION): void {
         throw new HttpBadRequestException($request, $message);
     }
 }

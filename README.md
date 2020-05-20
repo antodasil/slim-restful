@@ -4,7 +4,7 @@
 [![Latest Stable Version](https://poser.pugx.org/adasilva/slim-restful/version)](https://packagist.org/packages/adasilva/slim-restful)
 [![Latest Unstable Version](https://poser.pugx.org/adasilva/slim-restful/v/unstable)](//packagist.org/packages/adasilva/slim-restful)
 
-This library provides useful methods to simplify the use of Slim framework to create REST APIs.
+This library provides useful classes to simplify the use of Slim framework to create REST APIs.
 
 ## Getting Started
 
@@ -17,29 +17,33 @@ This will install Slim restful and all required dependencies (Including slim fra
 
 ## Hello world
 
-### Slim restful skeleton(WIP)
+### Slim restful skeleton
 
-To start a new project, you can use the skeleton(WIP).
+To start a new project, you can use the [skeleton](https://github.com/antodasil/slim-restful-skeleton).
 
 ### On an existing project
 
-Use the SlimLoader object to load your controllers/Middlewares and settings.
-- SlimLoader::loadSettings() initialize the SettingsManager from an ini or json file. It also set container settings :
-    determineRouteBeforeAppMiddleware to true
-    displayErrorDetails to true if setting "environment" = "development"
+Use the SettingsManager to load settings file (json or ini):
+ * load(string filepath): void - Load settings into the SettingsManager
+ * getContainer(): Container - Get container with settings
 
-- SlimLoader::loadRoutes() initialize routes from an xml or json file.
-Use SlimLoader::loadMiddlewares() to add slim RoutingMiddleware and ErrorMiddleware (Necessary to use your own middlewares).
+Use RestAppFactory instead of AppFactory:
+ * create(): RestApp
 
-A controller should extend BaseController and contains get,post,put,patch or delete methods with traditional slim parameters (request, response and arguments).
-It should return the response.
-To use the controller, you just have to add it on your routes file.
+RestApp define new methods:
+ * addSlimMiddlewares(): RestApp - Call Slim methods AddRoutingMiddleware() and AddErrorMiddleware(true, true, true).
+ * loadRoutes(string filepath): RestApp - Load routes and middlewares from file (json or xml)
+
+A controller MAY extend BaseController and SHOULD contains get,post,put,patch or delete methods with traditional slim parameters (request, response and arguments).
+It SHOULD return the response.
+
+A middleware MAY extend BaseMiddleware.
+
+To add a controller, you just have to add it on your routes file.
 
 ## Routes file
 
 The routes file is used to declare routes but also middlewares 
-
-### JSON
 
 ```json
 {
@@ -52,66 +56,31 @@ The routes file is used to declare routes but also middlewares
     "routes" : {
         "namespace": "Controllers\\",
         "list": [
-            { "name": "hello",   "pattern": "/hello",   "controller": "HelloController" }
+            { "name": "hello",   "pattern": "/hello",   "controller": "HelloController" },
+            { "name": "home",   "pattern": "/home",   "controller": "HomeController" }
         ]
     }
 }
 ```
 
-### XML
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Routes file example with xml -->
-
-<routing>
-    <middlewares namespace="Routes\">
-        <add middleware="TestMiddleware" annotation="test" />
-    </middlewares>
-
-    <routes namespace="Controllers\">
-        <add name="hello" pattern="/hello" controller="HelloController"/>
-    </routes>
-</routing>
-```
-
 ## Settings file
 
-These files are juste for syntax example. Only "environment" setting is necessary.
+These files are juste for syntax example. Only "environment" setting is necessary. Use "containerSettings" to defined container settings.
 
 ### JSON
 
 ```json
 {
-    "environment": "development",
-    "application": "Application name",
+    "application": {
+        "environment": "development",
+        "name": "Slim-restful Skeleton"
+    },
 
-    "driver": "pdo_pgsql",
-    "host": "127.0.0.1",
-    "port": "5432",
-    "database": "MyDatabase",
-    "username": "postgres",
-    "password": "password1234",
-    "charset" : "utf-8"
+    "containerSettings": {
+        "determineRouteBeforeAppMiddleware": true
+    }
+
 }
-```
-
-### INI
-
-```ini
-environment = "development" ;NECESSARY development|production
-application = "Application name"
-
-secretKey = "randomly generated string"
-
-;Database infos example
-driver   = "pdo_pgsql" ;idm_db2|pdo_sqlsrv|pdo_mysql|pdo_pgsql|pdo_sqlite
-host     = "127.0.0.1"
-port     = "5432"
-database = "MyDatabase"
-username = "postgres"
-password = "password1234"
-charset  = "utf-8"
 ```
 
 ## Authors

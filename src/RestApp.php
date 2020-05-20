@@ -2,53 +2,44 @@
 
 namespace SlimRestful;
 
-use DI\ContainerBuilder;
+use Minime\Annotations\AnnotationsBag;
+use Minime\Annotations\Reader;
 use Psr\Container\ContainerInterface;
 use SimpleXMLElement;
 use Slim\App;
 use Slim\Routing\Route;
 use Slim\Routing\RouteCollectorProxy;
-use zpt\anno\AnnotationFactory;
-use zpt\anno\Annotations;
 
-class SlimLoader {
-
-    protected static ?SlimLoader $instance = null;
-
-    private function __construct(){}
-
-    /**
-     * SINGLETON
-     * 
-     * @return SlimLoader
-     */
-    public static function getInstance(): SlimLoader {
- 
-        if(is_null(self::$instance)) {
-          self::$instance = new SlimLoader();
-        }
+class RestApp extends App {
     
-        return self::$instance;
+    /**
+     * Add slim middlewares
+     * 
+     * @return RestApp
+     */
+    public function addSlimMiddlewares(): RestApp {
+        $this->addRoutingMiddleware(); //To use middlewares
+        $this->addErrorMiddleware(true, true, true); //To return exact error code when throwing slim exceptions
+        return $this;
     }
-
 
 
     /**
      * Add middlewares to the $route
      * 
-     * @param Route $route                  The route
+     * @param Route $route                        The route
      * @param array|SimpleXMLElement $middlewares List of middlewares
-     * @param string $middlewaresNamespace  Namespace of middlewares
-     * @param Annotations $annos            List of method annotations
+     * @param string $middlewaresNamespace        Namespace of middlewares
+     * @param AnnotationsBag $annos               List of method annotations
      * 
      * @return void
      */
-    protected function addMiddlewares(Route $route, $middlewares, string $middlewaresNamespace, Annotations $annos): void {
+    protected function addMiddlewares(Route $route, $middlewares, string $middlewaresNamespace, AnnotationsBag $annos): void {
 
         foreach($middlewares as $middleware) {
 
             if(is_null($middleware['middleware'])) {
-                throw new LoaderException('Middlewares loading: middleware attribute is missing');
+                throw new RoutesLoadingException('Middlewares loading: middleware attribute is missing');
             }
 
             if($middleware instanceof SimpleXMLElement) {
@@ -61,8 +52,8 @@ class SlimLoader {
             
             $isReversed = array_key_exists('reversed', $middleware) ? $middleware['reversed'] : null;
             $annotation = array_key_exists('annotation', $middleware)
-                ? array_key_exists($middleware['annotation'], $annos->asArray())
-                    ? $annos[$middleware['annotation']]
+                ? $annos->has($middleware['annotation'])
+                    ? $annos->get($middleware['annotation'])
                     : false
                 : null
             ;
@@ -82,14 +73,13 @@ class SlimLoader {
     /**
      * Load routes from xml or json file
      * 
-     * @param App $app Slim app instance
      * @param string $filename JSON or XML file name (Example: 'routes.json')
      * 
-     * @return SlimLoader
+     * @return RestApp
      * 
-     * @throws LoaderException
+     * @throws RoutesLoadingException
      */
-    public function loadRoutes(App $app, string $filename): SlimLoader {
+    public function loadRoutes(string $filename): RestApp {
         
         if (\file_exists($filename)) {
             $extension = pathinfo($filename)['extension'];
@@ -126,15 +116,15 @@ class SlimLoader {
                     }
                     break;
                 default:
-                    throw new LoaderException('Routes file must be of xml or json type');
+                    throw new RoutesLoadingException('Routes file must be of xml or json type');
                     break;
                 }
 
-            $container = $app->getContainer();
-            $annoFactory = new AnnotationFactory();
+            $container = $this->getContainer();
+            $reader = Reader::createFromDefaults();
 
             if(is_null($routes)) {
-                throw new LoaderException('No routes in file');
+                throw new RoutesLoadingException('No routes in file');
             }
 
             foreach($routes as $route) {
@@ -144,7 +134,7 @@ class SlimLoader {
                 $methodsAllowed = array('get', 'post', 'put', 'patch', 'delete');
                 $self = $this;
 
-                $app->group(
+                $this->group(
                     $routesAttributes['pattern'],
                     function(RouteCollectorProxy $group) use (
                         $self,
@@ -153,7 +143,7 @@ class SlimLoader {
                         $routesAttributes,
                         $middlewares,
                         $middlewaresNamespace,
-                        $annoFactory
+                        $reader
                     ) {
                         $controller = $controllersNamespace . $routesAttributes['controller'];
                         $name = $routesAttributes['name'];
@@ -167,7 +157,7 @@ class SlimLoader {
                                 )->setName($name . strtoupper($method));
                                 
                                 if(!is_null($middlewares)) {
-                                    $annos = $annoFactory->get(new \ReflectionMethod($controller, $method));
+                                    $annos = $reader->getMethodAnnotations($controller, $method);
                                     $self->addMiddlewares($methodRoute, $middlewares, $middlewaresNamespace, $annos);
                                 }
                             }
@@ -182,70 +172,7 @@ class SlimLoader {
                 });
             }
         } else {
-            throw new LoaderException('Routes file loading failed.');
-        }
-
-        return $this;
-    }
-    
-    /**
-     * Add slim middlewares
-     * 
-     * @param App $app Slim app instance
-     * 
-     * @return SlimLoader
-     */
-    public function loadMiddlewares(App $app): SlimLoader {
-        $app->addRoutingMiddleware(); //To use middlewares
-        $app->addErrorMiddleware(true, true, true); //To return exact error code when throwing slim exceptions
-        return $this;
-    }
-
-    /**
-     * Load settings from .ini file
-     * todo: Add passphrase support for rsa keys
-     * 
-     * @param ContainerBuilder Slim app container instance
-     * @param string $filename
-     * 
-     * @return SlimLoader
-     * 
-     * @throws LoaderException
-     */
-    public function loadSettings(ContainerBuilder $containerBuilder, string $filename): SlimLoader {
-
-        $settingsManager = SettingsManager::getInstance();
-
-        if (file_exists($filename)) {
-            $extension = pathinfo($filename)['extension'];
-            
-            switch ($extension) {
-                case 'ini': 
-                    $params = parse_ini_file($filename);
-                    break;
-                case 'json': 
-                    $params = json_decode(file_get_contents($filename), true);
-                    break;
-                default: 
-                    throw new LoaderException('Config file must be of ini or json type');
-                    break;
-                }
-
-            $settingsManager->addSettings($params);
-
-            $isDev = array_key_exists('environment', $params)
-                ? $params['environment'] === 'development'
-                : false;
-
-            $containerBuilder->addDefinitions(array(
-                'settings' => array(
-                    'displayErrorDetails' => $isDev,
-                    'determineRouteBeforeAppMiddleware' => true,
-                )
-            ));
-
-        } else {
-            throw new LoaderException("Failed to load config file: $filename.");
+            throw new RoutesLoadingException('Routes file loading failed.');
         }
 
         return $this;

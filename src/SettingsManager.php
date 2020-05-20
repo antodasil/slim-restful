@@ -2,6 +2,9 @@
 
 namespace SlimRestful;
 
+use DI\Container;
+use DI\ContainerBuilder;
+
 class SettingsManager {
 
     /**
@@ -27,11 +30,11 @@ class SettingsManager {
      */
     public static function getInstance(): SettingsManager {
  
-        if(is_null(self::$instance)) {
-          self::$instance = new SettingsManager();
+        if(is_null(static::$instance)) {
+          static::$instance = new SettingsManager();
         }
     
-        return self::$instance;
+        return static::$instance;
     }
 
     /**
@@ -54,5 +57,62 @@ class SettingsManager {
      */
     public function addSettings(array $settings): void {
         $this->settings = array_merge($settings, $this->settings);
+    }
+
+    /**
+     * Load settings from .ini/.json file
+     * 
+     * @param string $filename
+     * 
+     * @throws SettingsException
+     */
+    public function load(string $filename) {
+
+        $settingsManager = static::getInstance();
+
+        if (file_exists($filename)) {
+            $extension = pathinfo($filename)['extension'];
+            
+            switch ($extension) {
+                case 'ini': 
+                    $params = parse_ini_file($filename, true);
+                    break;
+                case 'json': 
+                    $params = json_decode(file_get_contents($filename), true);
+                    break;
+                default: 
+                    throw new SettingsException('Config file must be of ini or json type');
+                    break;
+                }
+
+            $settingsManager->addSettings($params);
+
+        } else {
+            throw new SettingsException("Failed to load config file: $filename.");
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get Container from settings
+     * 
+     * @return Container
+     */
+    public function getContainer(): Container {
+        $builder = new ContainerBuilder();
+        $isDev = $this->get('application')['environment'] === 'development'
+            || $this->get('environment') === 'development';
+
+        $builder->addDefinitions(array(
+            'settings' => array_merge(
+                array(
+                    'displayErrorDetails' => $isDev,
+                    'determineRouteBeforeAppMiddleware' => true,
+                ),
+                $this->get('containerSettings')
+            )
+        ));
+        return $builder->build();
     }
 }
